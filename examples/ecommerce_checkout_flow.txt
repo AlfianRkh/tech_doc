@@ -1,0 +1,74 @@
+Flow: E-Commerce Checkout Process
+Description: Flow lengkap untuk proses checkout barang dan kalkulasi diskon otomatis
+
+[Node: Start]
+Input: {
+    "trigger": {
+        "desc": "trigger action",
+        "type": "string",
+        "value": "user_action",
+        "required": true
+    },
+    "channel": {
+        "desc": "channel action",
+        "type": "string",
+        "value": "mobile_app",
+        "required": true
+    }
+}
+Output: {
+    "status": "started",
+    "session_id": "123"
+}
+
+[Node: Validate Cart]
+Input: {
+    "user_id": {
+        "desc": "id user",
+        "type": "integer",
+        "value": 123,
+        "required": true
+    },
+    "cart_items": {
+        "desc": "item yang dibeli",
+        "type": "array",
+        "value": "[{\"id\": 1,\"qty\": 2}]",
+        "required": true
+    }
+}
+Validation: user_id must exist in database, cart must not be empty
+Logic: 1. Fetch user cart from DB\n2. Check stock availability for each item
+Output: {
+    "cart_valid": true,
+    "total_price": 50000
+}
+
+[Node: Apply Promo]
+Input: {
+        "total_price": {
+            "desc": "total yang ditagihkan",
+            "type": "numeric",
+            "value": 50000,
+            "required": true
+        },
+        "promo_code": {
+            "desc": "kode promo voucher",
+            "type": "string",
+            "value": "DISC10",
+            "required": false
+        }
+}
+Validation: promo_code must be valid and not expired
+Logic: 1. Query promo code rules\n2. Calculate discount\n3. Return final price
+Output: {
+    "discount": 5000,
+    "final_price": 45000
+}
+
+[Node: End]
+Output: {
+    "status": "completed"
+}
+
+Connections:
+Start -> Validate Cart -> Apply Promo -> End

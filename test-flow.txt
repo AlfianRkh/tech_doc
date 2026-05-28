@@ -1,0 +1,177 @@
+Flow: Cek Ongkir Calculator
+Description: Alur lengkap dari inputan form, validasi, pemanggilan API, hingga tampilan rincian biaya pengiriman
+
+[Node: Start]
+Output: { "trigger": "user_open_halaman_calculator" }
+
+[Node: Load Sender Address]
+API: GET /order/cekongkir/asalgudang
+Output: { "data": [{ "addr_id": 1, "kota": "SIDOARJO", "kecamatan": "SIDOARJO" }] }
+
+[Node: Load Kurir List]
+API: GET /order/kurir
+Output: { "success": true, "data": [{ "id": 1, "name": "IDX" }, { "id": 2, "name": "JNE" }, ...] }
+
+[Node: User Input Form]
+Input fields:
+
+sender_addr_id  → Asal Pengiriman (search /order/wilayah?q=...)
+addr_id         → Tujuan Pengiriman (search /order/wilayah?q=...)
+weight          → Berat (Kg, min 0.5, max 99)
+l, w, h         → Panjang, Lebar, Tinggi (Cm)
+codStatus       → true=COD / false=Non-COD
+item_value      → Nilai Barang
+codValue        → Nilai COD (hanya tampil jika COD=true)
+[Node: Trigger Search]
+Event: User klik tombol "Cek Ongkos Kirim" → memanggil search()
+
+VALIDASI
+[Node: Validasi Asal]
+Output: { "valid": true/false, "field": "sender_addr_id" }
+
+[Node: Error Asal]
+Output: { "message": "Asal gudang belum dipilih!", "type": "error" }
+
+[Node: Validasi Tujuan]
+Output: { "valid": true/false, "field": "addr_id" }
+
+[Node: Error Tujuan]
+Output: { "message": "Tujuan pengiriman belum dipilih!", "type": "error" }
+
+[Node: Validasi Berat]
+Cek: weight == 0 → error | weight > 99 → error
+Output: { "valid": true/false, "field": "weight" }
+
+[Node: Error Berat Kosong]
+Output: { "message": "Berat harus di isi", "type": "error" }
+
+[Node: Error Berat Melebihi]
+Output: { "message": "Berat maksimum 99 Kg!", "type": "error" }
+
+LOAD ONGKIR
+[Node: mapOngkir]
+Proses: Iterasi semua kurir dari listCourier, untuk setiap kurir panggil newLoadOngkir(params)
+
+[Node: newLoadOngkir per Kurir]
+API: GET /order/ongkir?addr_id=...&sender_addr_id=...&weight=...&courier={id}&w=...&h=...&l=...&order_type=...
+Output per kurir:
+
+{
+  "id": 7,
+  "kurir": "SAP",
+  "service": "REG",
+  "serviceName": "Regular",
+  "price": 10500,
+  "disc": 2100,
+  "maxPrice": 12600,
+  "etd_from": 2,
+  "etd_thru": 3,
+  "ppn": 11,
+  "ppn_ongkir": 1,
+  "ppn_ongkir_inc": 0,
+  "feecod": 3,
+  "ins": 0.2,
+  "insmin": 50000,
+  "insfee": 0,
+  "weight": 1,
+  "drop_off": 0
+}
+[Node: Accumulate Result Ongkir]
+Proses: IDX (courier_id=1) dimasukkan di posisi 0, kurir lain di-push ke belakang
+Output: { "resultOngkir": [...array semua service kurir...] }
+
+[Node: If Satu Hasil]
+Cek: resultOngkir.length == 1
+Output: { "auto_select": true/false }
+
+[Node: Auto Select Service]
+Proses: selectService(0) — langsung pilih satu-satunya service
+
+[Node: Tampil List Kurir]
+Tampilkan daftar semua service dengan: logo kurir, nama service, ETD, harga (coret jika ada diskon), progress bar loading
+
+PILIH SERVICE & HITUNG BIAYA
+[Node: User Pilih Service]
+Event: User klik salah satu kurir → selectService(sid)
+Output: { "service": { ...data kurir terpilih... }, "courier_id": 7 }
+
+[Node: hitungBiaya]
+Proses 3 kalkulasi paralel:
+
+[Node: getBiayaOngkir]
+Formula: (price - disc) → jika ppn_ongkir_inc == 0: tambah PPN ongkir
+Output: { "nilai_ongkir": 8482 }
+
+[Node: getBiayaCOD]
+Kondisi: hanya jika codStatus == true
+Formula: (codValue * feecod / 100) + PPN
+Output: { "feeCod": 3465 } atau { "feeCod": 0 } jika Non-COD
+
+[Node: getBiayaAsuransi]
+Kondisi: hanya jika checkbox Asuransi dicentang
+Formula:
+
+Kurir SAP (id=7): base dari codValue atau item_value + ongkir + codFee
+Kurir SiCepat (id=3): base dari codValue jika COD, item_value jika Non-COD
+Lainnya: base dari item_value
+insFee = ins% * itemVal atau fixed insfee
+Minimum SAP/SiCepat: Rp 2.750
+Tambah ppn_insurance jika > 0
+Output: { "insurance_fee": 2750 }
+[Node: Hitung Total]
+Formula:
+
+COD: totalReceived = codValue - nilai_ongkir - feeCod - insurance_fee
+Non-COD: total = nilai_ongkir + insurance_fee
+Output:
+{
+  "nilai_ongkir": 8482,
+  "feeCod": 3465,
+  "insurance_fee": 2750,
+  "totalReceived": 35303
+}
+OUTPUT AKHIR
+[Node: Tampil Rincian Pembayaran]
+Menampilkan:
+
+Berat Paket           : X Kg (atau Volumetrik jika weight < service.weight)
+Nilai Paket           : Rp {item_value}
+Nilai COD             : Rp {codValue}         ← jika COD
+Ongkir + COD Fee      : Rp {nilai_ongkir + feeCod}
+  ↳ Ongkir + PPN      : Rp {nilai_ongkir}     ← expandable
+  ↳ COD Fee + PPN     : Rp {feeCod}           ← expandable
+Biaya Asuransi        : Rp {insurance_fee}
+─────────────────────────────────────────
+Nilai yang diterima   : Rp {totalReceived}    ← hijau jika positif, merah jika negatif
+[Node: END]
+Output: { "status": "displayed" }
+
+Connections
+Start -> Load Sender Address
+Load Sender Address -> Load Kurir List
+Load Kurir List -> User Input Form
+User Input Form -> Trigger Search
+Trigger Search -> Validasi Asal
+Validasi Asal --false--> Error Asal
+Validasi Asal --true--> Validasi Tujuan
+Validasi Tujuan --false--> Error Tujuan
+Validasi Tujuan --true--> Validasi Berat
+Validasi Berat --weight==0--> Error Berat Kosong
+Validasi Berat --weight>99--> Error Berat Melebihi
+Validasi Berat --valid--> mapOngkir
+mapOngkir -> newLoadOngkir per Kurir
+newLoadOngkir per Kurir -> Accumulate Result Ongkir
+Accumulate Result Ongkir -> If Satu Hasil
+If Satu Hasil --true--> Auto Select Service
+If Satu Hasil --false--> Tampil List Kurir
+Tampil List Kurir -> User Pilih Service
+Auto Select Service -> hitungBiaya
+User Pilih Service -> hitungBiaya
+hitungBiaya -> getBiayaOngkir
+hitungBiaya -> getBiayaCOD
+hitungBiaya -> getBiayaAsuransi
+getBiayaOngkir -> Hitung Total
+getBiayaCOD -> Hitung Total
+getBiayaAsuransi -> Hitung Total
+Hitung Total -> Tampil Rincian Pembayaran
+Tampil Rincian Pembayaran -> END
