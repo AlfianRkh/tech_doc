@@ -6,6 +6,7 @@ const pool = new Pool(
     {
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false }, // wajib untuk Supabase
+      family: 4, // Paksa IPv4 — hindari ENETUNREACH di jaringan tanpa IPv6
     } :
     {
       host: process.env.DB_HOST || 'localhost',
