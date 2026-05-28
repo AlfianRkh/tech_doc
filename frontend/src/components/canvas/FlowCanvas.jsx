@@ -128,7 +128,7 @@ export default function FlowCanvas({ nodeTemplates }) {
 
     try {
       const sim = await api.createSimulation(flow.id);
-      const sse = new EventSource(`/api/simulations/${sim.id}/stream`);
+      const sse = new EventSource(`${import.meta.env.VITE_API_URL || ''}/api/simulations/${sim.id}/stream`);
 
       sse.onmessage = (e) => {
         const event = JSON.parse(e.data);
