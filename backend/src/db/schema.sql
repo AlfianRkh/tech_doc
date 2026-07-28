@@ -1,9 +1,73 @@
 -- ============================================================
--- TechFlow Database Schema
+-- TechFlow Database Schema with Multi-Project & Dynamic RBAC
 -- ============================================================
 
+-- Projects / Documentation Repositories
+CREATE TABLE IF NOT EXISTS projects (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  code VARCHAR(50) UNIQUE NOT NULL,
+  description TEXT DEFAULT '',
+  color VARCHAR(20) DEFAULT '#3b82f6',
+  icon VARCHAR(50) DEFAULT '📁',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Roles Definition
+CREATE TABLE IF NOT EXISTS roles (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) UNIQUE NOT NULL,
+  description TEXT DEFAULT '',
+  is_system BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Feature Permissions Registry
+CREATE TABLE IF NOT EXISTS permissions (
+  id SERIAL PRIMARY KEY,
+  key VARCHAR(100) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  module VARCHAR(50) NOT NULL DEFAULT 'General',
+  description TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Role-Permissions Junction
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
+);
+
+-- Users Table
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL,
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Project Members Access
+CREATE TABLE IF NOT EXISTS project_members (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(project_id, user_id)
+);
+
+-- Node Templates (System Global or Project Specific)
 CREATE TABLE IF NOT EXISTS node_templates (
   id SERIAL PRIMARY KEY,
+  project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   node_type VARCHAR(50) NOT NULL DEFAULT 'Process',
   description TEXT DEFAULT '',
@@ -18,8 +82,10 @@ CREATE TABLE IF NOT EXISTS node_templates (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Documentation Flows (Scoped to Project)
 CREATE TABLE IF NOT EXISTS flows (
   id SERIAL PRIMARY KEY,
+  project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT DEFAULT '',
   version VARCHAR(20) DEFAULT 'v1.0',
@@ -85,9 +151,15 @@ CREATE TABLE IF NOT EXISTS node_executions (
   error_message TEXT
 );
 
+-- Add Columns if table pre-existed
+ALTER TABLE node_templates ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;
+ALTER TABLE flows ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;
+
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_flows_project ON flows(project_id);
+CREATE INDEX IF NOT EXISTS idx_node_templates_project ON node_templates(project_id);
 CREATE INDEX IF NOT EXISTS idx_flow_nodes_flow ON flow_nodes(flow_id);
 CREATE INDEX IF NOT EXISTS idx_flow_conns_flow ON flow_connections(flow_id);
 CREATE INDEX IF NOT EXISTS idx_simulations_flow ON simulations(flow_id);
 CREATE INDEX IF NOT EXISTS idx_node_exec_sim ON node_executions(simulation_id);
-CREATE INDEX IF NOT EXISTS idx_simulations_created ON simulations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

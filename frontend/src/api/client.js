@@ -1,9 +1,19 @@
-const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
+import { getApiBaseUrl } from '../config';
+
+const BASE = getApiBaseUrl() || 'http://localhost:3001/api';
+
+function getToken() {
+  return localStorage.getItem('tf_token');
+}
 
 async function req(method, path, body) {
+  const BASE = getApiBaseUrl();
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
   };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(BASE + path, opts);
@@ -14,18 +24,54 @@ async function req(method, path, body) {
   return res.json();
 }
 
+function withProject(path, projectId) {
+  if (!projectId) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}project_id=${projectId}`;
+}
+
 export const api = {
-  // Node Templates
-  getNodes: () => req('GET', '/nodes'),
+  // Auth
+  login: (email, password) => req('POST', '/auth/login', { email, password }),
+  register: (name, email, password) => req('POST', '/auth/register', { name, email, password }),
+  forgotPassword: (email) => req('POST', '/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => req('POST', '/auth/reset-password', { token, newPassword }),
+  getMe: () => req('GET', '/auth/me'),
+
+  // Projects / Repos
+  getProjects: () => req('GET', '/projects'),
+  createProject: (data) => req('POST', '/projects', data),
+  updateProject: (id, data) => req('PUT', `/projects/${id}`, data),
+  deleteProject: (id) => req('DELETE', `/projects/${id}`),
+
+  // Users
+  getUsers: () => req('GET', '/users'),
+  updateUserRole: (id, role_id) => req('PUT', `/users/${id}/role`, { role_id }),
+  deleteUser: (id) => req('DELETE', `/users/${id}`),
+
+  // Roles
+  getRoles: () => req('GET', '/roles'),
+  createRole: (data) => req('POST', '/roles', data),
+  updateRole: (id, data) => req('PUT', `/roles/${id}`, data),
+  deleteRole: (id) => req('DELETE', `/roles/${id}`),
+
+  // Permissions Registry
+  getPermissions: () => req('GET', '/permissions'),
+  createPermission: (data) => req('POST', '/permissions', data),
+  updatePermission: (id, data) => req('PUT', `/permissions/${id}`, data),
+  deletePermission: (id) => req('DELETE', `/permissions/${id}`),
+
+  // Node Templates (project-scoped)
+  getNodes: (projectId) => req('GET', withProject('/nodes', projectId)),
   createNode: (data) => req('POST', '/nodes', data),
   updateNode: (id, data) => req('PUT', `/nodes/${id}`, data),
   deleteNode: (id) => req('DELETE', `/nodes/${id}`),
 
-  // Flows
-  getFlows: () => req('GET', '/flows'),
+  // Flows (project-scoped)
+  getFlows: (projectId) => req('GET', withProject('/flows', projectId)),
   getFlow: (id) => req('GET', `/flows/${id}`),
   createFlow: (data) => req('POST', '/flows', data),
-  generateFlowByText: (text) => req('POST', '/flows/generate-text', { text }),
+  generateFlowByText: (text, projectId) => req('POST', '/flows/generate-text', { text, project_id: projectId }),
   updateFlow: (id, data) => req('PUT', `/flows/${id}`, data),
   deleteFlow: (id) => req('DELETE', `/flows/${id}`),
 

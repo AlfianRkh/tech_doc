@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { optionalAuth } = require('../middleware/auth');
 
 function computeNodePositions(uniqueNodes, parsedConnections) {
   const adj = {};
@@ -120,18 +121,24 @@ function computeNodePositions(uniqueNodes, parsedConnections) {
   return positions;
 }
 
-// GET /api/flows
-router.get('/', async (req, res) => {
+// GET /api/flows  (supports ?project_id=X for isolation)
+router.get('/', optionalAuth, async (req, res) => {
   try {
-    const result = await db.query(`
+    const { project_id } = req.query;
+    let queryText = `
       SELECT f.*,
         COUNT(fn.id)::int AS node_count,
         (SELECT COUNT(*) FROM simulations s WHERE s.flow_id = f.id)::int AS sim_count
       FROM flows f
       LEFT JOIN flow_nodes fn ON fn.flow_id = f.id
-      GROUP BY f.id
-      ORDER BY f.updated_at DESC
-    `);
+    `;
+    const params = [];
+    if (project_id) {
+      queryText += ` WHERE f.project_id = $1`;
+      params.push(project_id);
+    }
+    queryText += ` GROUP BY f.id ORDER BY f.updated_at DESC`;
+    const result = await db.query(queryText, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -164,13 +171,13 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/flows
-router.post('/', async (req, res) => {
-  const { name, description = '', version = 'v1.0', status = 'draft' } = req.body;
+router.post('/', optionalAuth, async (req, res) => {
+  const { name, description = '', version = 'v1.0', status = 'draft', project_id = null } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
     const result = await db.query(
-      'INSERT INTO flows (name, description, version, status) VALUES ($1,$2,$3,$4) RETURNING *',
-      [name, description, version, status]
+      'INSERT INTO flows (name, description, version, status, project_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [name, description, version, status, project_id]
     );
     const flow = result.rows[0];
 
@@ -486,9 +493,10 @@ router.post('/generate-text', async (req, res) => {
     await client.query('BEGIN');
 
     // 2. Create Flow Induk
+    const { project_id: projectIdBody } = req.body;
     const flowRes = await client.query(
-      'INSERT INTO flows (name, description, status) VALUES ($1, $2, $3) RETURNING id',
-      [flowName, flowDesc, 'draft']
+      'INSERT INTO flows (name, description, status, project_id) VALUES ($1, $2, $3, $4) RETURNING id',
+      [flowName, flowDesc, 'draft', projectIdBody || null]
     );
     const flowId = flowRes.rows[0].id;
 

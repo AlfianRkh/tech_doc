@@ -9,7 +9,16 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 
-// Routes
+// Auth & Access Control
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/roles', require('./routes/roles'));
+app.use('/api/permissions', require('./routes/permissions'));
+
+// Projects (Multi-Repo Folders)
+app.use('/api/projects', require('./routes/projects'));
+
+// Application Routes
 app.use('/api/nodes', require('./routes/nodes'));
 app.use('/api/flows', require('./routes/flows'));
 app.use('/api/simulations', require('./routes/simulations'));
