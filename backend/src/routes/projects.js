@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { optionalAuth, requirePermission } = require('../middleware/auth');
+const { optionalAuth, authenticateToken, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -42,7 +42,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // Create new project folder
-router.post('/', requirePermission('projects:write'), async (req, res) => {
+router.post('/', authenticateToken, requirePermission('projects:write'), async (req, res) => {
   try {
     const { name, code, description, color, icon } = req.body;
     if (!name || !code) {
@@ -72,7 +72,7 @@ router.post('/', requirePermission('projects:write'), async (req, res) => {
 });
 
 // Update project folder
-router.put('/:id', requirePermission('projects:write'), async (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('projects:write'), async (req, res) => {
   try {
     const { name, code, description, color, icon } = req.body;
     const updateRes = await db.query(
@@ -99,7 +99,7 @@ router.put('/:id', requirePermission('projects:write'), async (req, res) => {
 });
 
 // Delete project folder
-router.delete('/:id', requirePermission('projects:delete'), async (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission('projects:delete'), async (req, res) => {
   try {
     const deleteRes = await db.query('DELETE FROM projects WHERE id = $1 RETURNING *', [req.params.id]);
     if (deleteRes.rows.length === 0) {

@@ -64,6 +64,8 @@ function optionalAuth(req, _res, next) {
 
 function requirePermission(permissionKey) {
   return (req, res, next) => {
+    console.log('=== DEBUG req.user ===');
+    console.log(req.user);
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }

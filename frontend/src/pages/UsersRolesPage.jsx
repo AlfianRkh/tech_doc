@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -260,8 +260,8 @@ function RoleMatrix() {
           </thead>
           <tbody>
             {modules.map(mod => (
-              <>
-                <tr key={`mod-${mod}`}>
+              <React.Fragment key={mod}>
+                <tr>
                   <td colSpan={roles.length + 1} style={{ padding: '10px 12px 4px', fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: '0.1em', background: 'rgba(59,130,246,0.04)' }}>
                     {mod.toUpperCase()}
                   </td>
@@ -284,7 +284,7 @@ function RoleMatrix() {
                     ))}
                   </tr>
                 ))}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>
