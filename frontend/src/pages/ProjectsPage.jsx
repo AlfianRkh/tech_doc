@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +9,7 @@ const PROJECT_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '
 export default function ProjectsPage() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading } = useProject();
   const { hasPermission } = useAuth();
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', code: '', description: '', color: '#3b82f6', icon: '📁' });
@@ -123,7 +125,7 @@ export default function ProjectsPage() {
           {projects.map(p => {
             const isActive = activeProject?.id === p.id;
             return (
-              <div key={p.id} onClick={() => setActiveProject(p)} style={{
+              <div key={p.id} onClick={() => { setActiveProject(p); navigate('/flows'); }} style={{
                 background: isActive ? `linear-gradient(135deg, ${p.color}14, ${p.color}08)` : 'var(--bg2)',
                 border: `1px solid ${isActive ? p.color + '60' : 'var(--border)'}`,
                 borderRadius: 12, padding: 20, cursor: 'pointer',

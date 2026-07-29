@@ -21,6 +21,7 @@ app.use('/api/projects', require('./routes/projects'));
 // Application Routes
 app.use('/api/nodes', require('./routes/nodes'));
 app.use('/api/flows', require('./routes/flows'));
+app.use('/api/connections', require('./routes/connections'));
 app.use('/api/simulations', require('./routes/simulations'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/metrics', require('./routes/metrics'));
@@ -37,6 +38,6 @@ app.get('/api/health', async (_req, res) => {
 // 404 fallback
 app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
 
-app.listen(PORT, () => {
-  console.log(`TechFlow API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`TechFlow API running on port ${PORT}`);
 });

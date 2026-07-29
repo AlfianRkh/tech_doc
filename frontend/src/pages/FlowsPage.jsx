@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Badge from '../components/shared/Badge';
+import { useProject } from '../context/ProjectContext';
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -97,23 +98,25 @@ Item Loop --next--> Summarize Order
 Summarize Order -> End`;
 
 export default function FlowsPage() {
+  const { activeProject, setActiveProject, projects } = useProject();
   const [flows, setFlows] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '', description: '', project_id: '' });
   const [creating, setCreating] = useState(false);
   const [showTextForm, setShowTextForm] = useState(false);
   const [textPrompt, setTextPrompt] = useState('');
+  const [genProjectId, setGenProjectId] = useState('');
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { loadFlows(); }, []);
+  useEffect(() => { loadFlows(); }, [activeProject?.id]);
 
   async function loadFlows() {
     setLoading(true);
     try {
-      setFlows(await api.getFlows());
+      setFlows(await api.getFlows(activeProject?.id));
     } catch (err) {
       console.error(err);
     }
@@ -125,14 +128,27 @@ export default function FlowsPage() {
     (f.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  const openCreateModal = () => {
+    setForm({ name: '', description: '', project_id: activeProject?.id ? String(activeProject.id) : '' });
+    setShowForm(true);
+  };
+
+  const openTextModal = () => {
+    setGenProjectId(activeProject?.id ? String(activeProject.id) : '');
+    setShowTextForm(true);
+  };
+
   async function createFlow() {
     if (!form.name.trim()) return alert('Name is required');
     setCreating(true);
     try {
-      await api.createFlow(form);
+      await api.createFlow({
+        ...form,
+        project_id: form.project_id ? Number(form.project_id) : null,
+      });
       await loadFlows();
       setShowForm(false);
-      setForm({ name: '', description: '' });
+      setForm({ name: '', description: '', project_id: '' });
     } catch (err) {
       alert('Create failed: ' + err.message);
     }
@@ -143,7 +159,10 @@ export default function FlowsPage() {
     if (!textPrompt.trim()) return alert('Text prompt is required');
     setGenerating(true);
     try {
-      const res = await api.generateFlowByText(textPrompt);
+      const res = await api.generateFlowByText(
+        textPrompt,
+        genProjectId ? Number(genProjectId) : null
+      );
       await loadFlows();
       setShowTextForm(false);
       setTextPrompt('');
@@ -175,18 +194,41 @@ export default function FlowsPage() {
           background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.2)',
           borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#06b6d4',
         }}>∿ FLOWS</div>
-        <div style={{ color: 'var(--text3)', fontSize: 12 }}>Kelola semua flow proses bisnis</div>
+
+        {activeProject ? (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: activeProject.color + '18', border: `1px solid ${activeProject.color}44`,
+            borderRadius: 6, padding: '3px 9px', fontSize: 12, color: activeProject.color, fontWeight: 600,
+          }}>
+            <span>{activeProject.icon || '📁'}</span>
+            <span>{activeProject.name}</span>
+            <button
+              onClick={() => setActiveProject(null)}
+              title="Show flows from all repositories"
+              style={{ background: 'none', border: 'none', color: activeProject.color, cursor: 'pointer', fontSize: 12, marginLeft: 2, padding: '0 2px' }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--text3)', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 8px' }}>
+            All Repositories
+          </span>
+        )}
+
+        <div style={{ color: 'var(--text3)', fontSize: 12, marginLeft: 4 }}>Kelola semua flow proses bisnis</div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search flows..."
           style={{ marginLeft: 'auto', width: 200 }}
         />
-        <button onClick={() => setShowTextForm(true)} style={{
+        <button onClick={openTextModal} style={{
           padding: '7px 14px', background: '#10b981', color: '#fff',
           borderRadius: 6, fontSize: 12, fontWeight: 600,
         }}>✨ Generate by Text</button>
-        <button onClick={() => setShowForm(true)} style={{
+        <button onClick={openCreateModal} style={{
           padding: '7px 14px', background: '#3b82f6', color: '#fff',
           borderRadius: 6, fontSize: 12, fontWeight: 600,
         }}>+ New Flow</button>
@@ -200,7 +242,7 @@ export default function FlowsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg2)', zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Name','Description','Nodes','Simulations','Version','Updated','Status','Actions'].map((h) => (
+                {['Name','Repository','Description','Nodes','Simulations','Version','Updated','Status','Actions'].map((h) => (
                   <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text3)' }}>{h}</th>
                 ))}
               </tr>
@@ -215,6 +257,22 @@ export default function FlowsPage() {
                 >
                   <td style={{ padding: '12px 20px' }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{flow.name}</div>
+                  </td>
+                  <td style={{ padding: '12px 20px' }}>
+                    {flow.project_name ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: (flow.project_color || '#3b82f6') + '18',
+                        color: flow.project_color || '#3b82f6',
+                        border: `1px solid ${(flow.project_color || '#3b82f6')}33`,
+                        borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                      }}>
+                        <span>{flow.project_icon || '📁'}</span>
+                        <span>{flow.project_name}</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 20px', color: 'var(--text2)', fontSize: 12, maxWidth: 240 }}>
                     {flow.description || <span style={{ color: 'var(--text3)' }}>—</span>}
@@ -260,7 +318,7 @@ export default function FlowsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
+                  <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
                     {flows.length === 0 ? 'No flows yet. Create your first flow!' : 'No flows match search'}
                   </td>
                 </tr>
@@ -281,6 +339,24 @@ export default function FlowsPage() {
             borderRadius: 12, padding: 24, width: 440,
           }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>New Flow</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>Project Repository</label>
+              <select
+                value={form.project_id}
+                onChange={(e) => setForm((f) => ({ ...f, project_id: e.target.value }))}
+                style={{
+                  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
+                  borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--text1)', outline: 'none', boxSizing: 'border-box'
+                }}
+              >
+                <option value="">(No Repository / General)</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.icon || '📁'} {p.name} ({p.code})
+                  </option>
+                ))}
+              </select>
+            </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>Flow Name *</label>
               <input
@@ -324,6 +400,24 @@ export default function FlowsPage() {
             borderRadius: 12, padding: 24, width: 600,
           }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Generate Flow by Text</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>Target Project Repository</label>
+              <select
+                value={genProjectId}
+                onChange={(e) => setGenProjectId(e.target.value)}
+                style={{
+                  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
+                  borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--text1)', outline: 'none', boxSizing: 'border-box'
+                }}
+              >
+                <option value="">(No Repository / General)</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.icon || '📁'} {p.name} ({p.code})
+                  </option>
+                ))}
+              </select>
+            </div>
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8, gap: 12 }}>
                 <label style={{ fontSize: 11, color: 'var(--text3)', flex: 1 }}>

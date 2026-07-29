@@ -83,12 +83,31 @@ export const api = {
   // Flow Connections
   addConnection: (flowId, data) => req('POST', `/flows/${flowId}/connections`, data),
   deleteConnection: (flowId, connId) => req('DELETE', `/flows/${flowId}/connections/${connId}`),
+  getConnections: (projectId, flowId, search) => {
+    let path = '/connections';
+    const params = [];
+    if (projectId) params.push(`project_id=${projectId}`);
+    if (flowId) params.push(`flow_id=${flowId}`);
+    if (search) params.push(`search=${encodeURIComponent(search)}`);
+    if (params.length) path += '?' + params.join('&');
+    return req('GET', path);
+  },
 
   // Simulations
+  getSimulations: (projectId, flowId, search) => {
+    let path = '/simulations';
+    const params = [];
+    if (projectId) params.push(`project_id=${projectId}`);
+    if (flowId) params.push(`flow_id=${flowId}`);
+    if (search) params.push(`search=${encodeURIComponent(search)}`);
+    if (params.length) path += '?' + params.join('&');
+    return req('GET', path);
+  },
   createSimulation: (flowId, inputData = {}) =>
     req('POST', '/simulations', { flow_id: flowId, input_data: inputData }),
   getSimulation: (id) => req('GET', `/simulations/${id}`),
   getFlowSimulations: (flowId) => req('GET', `/simulations/flow/${flowId}`),
+  deleteSimulation: (id) => req('DELETE', `/simulations/${id}`),
 
   // Dashboard & Metrics
   getDashboard: () => req('GET', '/dashboard'),

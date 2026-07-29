@@ -8,6 +8,55 @@ const { runSimulation } = require('../simulation/engine');
 const simBus = new EventEmitter();
 simBus.setMaxListeners(200);
 
+// GET /api/simulations — list all simulations with flow & project metadata
+router.get('/', async (req, res) => {
+  try {
+    const { project_id, flow_id, search } = req.query;
+    const params = [];
+    const conditions = [];
+
+    if (project_id) {
+      params.push(project_id);
+      conditions.push(`f.project_id = $${params.length}`);
+    }
+    if (flow_id) {
+      params.push(flow_id);
+      conditions.push(`s.flow_id = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(f.name ILIKE $${params.length} OR p.name ILIKE $${params.length})`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const queryText = `
+      SELECT
+        s.*,
+        f.name AS flow_name,
+        f.version AS flow_version,
+        p.id AS project_id,
+        p.name AS project_name,
+        p.code AS project_code,
+        p.color AS project_color,
+        p.icon AS project_icon,
+        (SELECT COUNT(*)::int FROM node_executions ne WHERE ne.simulation_id = s.id) AS node_count,
+        (SELECT COUNT(*)::int FROM node_executions ne WHERE ne.simulation_id = s.id AND ne.status = 'error') AS error_count
+      FROM simulations s
+      JOIN flows f ON f.id = s.flow_id
+      LEFT JOIN projects p ON p.id = f.project_id
+      ${whereClause}
+      ORDER BY s.created_at DESC
+      LIMIT 100
+    `;
+
+    const result = await db.query(queryText, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/simulations — create and start simulation
 router.post('/', async (req, res) => {
   const { flow_id, input_data = {} } = req.body;

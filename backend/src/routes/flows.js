@@ -127,9 +127,11 @@ router.get('/', optionalAuth, async (req, res) => {
     const { project_id } = req.query;
     let queryText = `
       SELECT f.*,
+        p.name AS project_name, p.code AS project_code, p.color AS project_color, p.icon AS project_icon,
         COUNT(fn.id)::int AS node_count,
         (SELECT COUNT(*) FROM simulations s WHERE s.flow_id = f.id)::int AS sim_count
       FROM flows f
+      LEFT JOIN projects p ON f.project_id = p.id
       LEFT JOIN flow_nodes fn ON fn.flow_id = f.id
     `;
     const params = [];
@@ -137,7 +139,7 @@ router.get('/', optionalAuth, async (req, res) => {
       queryText += ` WHERE f.project_id = $1`;
       params.push(project_id);
     }
-    queryText += ` GROUP BY f.id ORDER BY f.updated_at DESC`;
+    queryText += ` GROUP BY f.id, p.name, p.code, p.color, p.icon ORDER BY f.updated_at DESC`;
     const result = await db.query(queryText, params);
     res.json(result.rows);
   } catch (err) {

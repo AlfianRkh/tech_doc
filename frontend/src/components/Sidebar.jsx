@@ -8,27 +8,23 @@ const sections = [
     label: 'FLOW BUILDER',
     items: [
       { to: '/canvas', icon: '⬡', label: 'Flow Canvas', perm: 'flows:read' },
-      { to: '/nodes',  icon: '◉', label: 'Nodes', perm: 'nodes:read' },
+      { to: '/nodes', icon: '◉', label: 'Nodes', perm: 'nodes:read' },
       { to: '/connections', icon: '⤷', label: 'Connections' },
-      { to: '/templates', icon: '⊞', label: 'Templates' },
     ],
   },
   {
     label: 'MANAGEMENT',
     items: [
-      { to: '/flows',       icon: '∿', label: 'Flows', perm: 'flows:read' },
-      { to: '/projects',    icon: '📁', label: 'Projects / Repos', perm: 'projects:read' },
+      { to: '/flows', icon: '∿', label: 'Flows', perm: 'flows:read' },
+      { to: '/projects', icon: '📁', label: 'Projects / Repos', perm: 'projects:read' },
       { to: '/simulations', icon: '▷', label: 'Simulations', perm: 'simulations:read' },
-      { to: '/versioning',  icon: '⎇', label: 'Versioning' },
-      { to: '/documents',   icon: '⊟', label: 'Documents' },
     ],
   },
   {
     label: 'ANALYTICS',
     items: [
       { to: '/dashboard', icon: '◫', label: 'Dashboard' },
-      { to: '/reports',   icon: '◨', label: 'Reports' },
-      { to: '/metrics',   icon: '◎', label: 'Metrics' },
+      { to: '/reports', icon: '◨', label: 'Reports' },
     ],
   },
   {
