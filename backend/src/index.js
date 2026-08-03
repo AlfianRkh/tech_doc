@@ -26,6 +26,9 @@ app.use('/api/simulations', require('./routes/simulations'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/metrics', require('./routes/metrics'));
 
+// AI Code Documentation Agent
+app.use('/api/ai', require('./routes/ai'));
+
 app.get('/api/health', async (_req, res) => {
   try {
     await db.query('SELECT 1');

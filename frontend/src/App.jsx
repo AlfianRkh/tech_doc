@@ -17,6 +17,7 @@ import UsersRolesPage from './pages/UsersRolesPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ConnectionsPage from './pages/ConnectionsPage';
 import SimulationsPage from './pages/SimulationsPage';
+import DocumentsPage from './pages/DocumentsPage';
 import { api } from './api/client';
 import { getApiBaseUrl, setApiBaseUrl } from './config';
 
@@ -187,7 +188,7 @@ function AppShell() {
             <Route path="/templates" element={<PlaceholderPage title="Templates" desc="Browse and use flow templates" icon="⊞" />} />
             <Route path="/simulations" element={<SimulationsPage />} />
             <Route path="/versioning" element={<PlaceholderPage title="Versioning" desc="Version control for your flows" icon="⎇" />} />
-            <Route path="/documents" element={<PlaceholderPage title="Documents" desc="Documentation and technical guides" icon="⊟" />} />
+            <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/reports" element={<PlaceholderPage title="Reports" desc="Generate and export detailed reports" icon="◨" />} />
           </Routes>
         </div>

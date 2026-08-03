@@ -18,6 +18,7 @@ const sections = [
       { to: '/flows', icon: '∿', label: 'Flows', perm: 'flows:read' },
       { to: '/projects', icon: '📁', label: 'Projects / Repos', perm: 'projects:read' },
       { to: '/simulations', icon: '▷', label: 'Simulations', perm: 'simulations:read' },
+      { to: '/documents', icon: '🤖', label: 'AI Docs Agent' },
     ],
   },
   {

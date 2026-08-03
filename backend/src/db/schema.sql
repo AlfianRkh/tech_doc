@@ -163,3 +163,30 @@ CREATE INDEX IF NOT EXISTS idx_flow_conns_flow ON flow_connections(flow_id);
 CREATE INDEX IF NOT EXISTS idx_simulations_flow ON simulations(flow_id);
 CREATE INDEX IF NOT EXISTS idx_node_exec_sim ON node_executions(simulation_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- ============================================================
+-- AI Code Documentation
+-- ============================================================
+
+-- Stores every AI analysis session (one per paste + analyze)
+CREATE TABLE IF NOT EXISTS code_documents (
+  id              SERIAL PRIMARY KEY,
+  project_id      INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+  flow_id         INTEGER REFERENCES flows(id) ON DELETE SET NULL,
+  title           VARCHAR(255) NOT NULL DEFAULT 'Untitled Analysis',
+  language        VARCHAR(20)  NOT NULL DEFAULT 'php'
+                    CONSTRAINT code_doc_lang CHECK (language IN ('php', 'golang')),
+  source_code     TEXT         NOT NULL,
+  ai_model        VARCHAR(100) DEFAULT 'deepseek-coder:6.7b',
+  analysis_result JSONB        DEFAULT '{}',
+  doc_markdown    TEXT         DEFAULT '',
+  status          VARCHAR(20)  DEFAULT 'pending'
+                    CONSTRAINT code_doc_status CHECK (status IN ('pending', 'analyzing', 'done', 'failed')),
+  error_message   TEXT,
+  created_at      TIMESTAMPTZ  DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_code_docs_project ON code_documents(project_id);
+CREATE INDEX IF NOT EXISTS idx_code_docs_flow    ON code_documents(flow_id);
+CREATE INDEX IF NOT EXISTS idx_code_docs_status  ON code_documents(status);
