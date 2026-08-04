@@ -96,7 +96,7 @@ async function checkOllamaHealth() {
   try {
     const res = await fetch(`${OLLAMA_BASE}/api/tags`, {
       headers: ollamaHeaders(),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) return { running: false, models: [], reason: `HTTP ${res.status}` };
     const data = await res.json();
